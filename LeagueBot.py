@@ -1,9 +1,16 @@
 # League Bot by Brandon He
 import os
 import discord
+import json
 from boto.s3.connection import S3Connection
 from discord.ext import commands
 from riotwatcher import LolWatcher, ApiError
+
+#if running local
+# from dotenv import load_dotenv
+# load_dotenv()
+# discordToken = os.getenv('discord')
+# riotAPI = os.getenv('riot')
 
 # global variables
 
@@ -31,16 +38,32 @@ async def on_test(context):
 	await context.send(response)
 
 
-@bot.command(name='summonerInfo')
-async def on_summonerInfo(context):
-	response = watcher.summoner.by_name(region, 'BHe')
+@bot.command(name='summonerInfo', help='display your summoner info')
+async def on_summonerInfo(context, username):
+	rawData = watcher.summoner.by_name(region, username)
+	response = json.dumps(rawData, indent=4)
 	await context.send(response)
 	
 
-@bot.command(name='rank')
-async def on_rank(context):
-	summoner = watcher.summoner.by_name(region, 'BHe')
-	response = watcher.league.by_summoner(region, summoner['id'])
+@bot.command(name='rank', help='display your rank info')
+async def on_rank(context, username):
+	summoner = watcher.summoner.by_name(region, username)
+
+	# returns a list where rawData[0] = flex rank, rawData[1] = solo/duo rank
+	rawData = watcher.league.by_summoner(region, summoner['id'])
+	
+	flex = rawData[0]
+	flex.pop('leagueId')
+	flex.pop('summonerId')
+
+	solo = rawData[1]
+	solo.pop('leagueId')
+	solo.pop('summonerId')
+
+	prettyFlex = json.dumps(flex, indent=4)
+	prettySolo = json.dumps(solo, indent=4)
+
+	response = prettyFlex + '\n' + prettySolo
 	await context.send(response)
 
 
