@@ -43,7 +43,12 @@ async def on_test(context):
 
 
 @bot.command(name='summonerInfo', help='display useless summoner info')
-async def on_summonerInfo(context, username):
+async def on_summonerInfo(context, *arguments):
+	username = ''
+	for x in arguments:
+		username += x + ' '
+	username = username[:-1]
+
 	rawData = watcher.summoner.by_name(region, username)
 	response = json.dumps(rawData, indent=4)
 
