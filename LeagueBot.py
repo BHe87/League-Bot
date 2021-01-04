@@ -2,6 +2,7 @@
 import os
 import discord
 import json
+import time
 from boto.s3.connection import S3Connection
 from discord.ext import commands
 from riotwatcher import LolWatcher, ApiError
@@ -56,7 +57,11 @@ async def on_summonerInfo(context, username):
 	
 
 @bot.command(name='rank', help='display your rank info')
-async def on_rank(context, username):
+async def on_rank(context, *arguments):# * operator allows for a variable # of arguments
+	username = ''
+	for x in arguments:
+		username += x
+
 	summoner = watcher.summoner.by_name(region, username)
 
 	# returns a list where rawData[0] = flex rank, rawData[1] = solo/duo rank
@@ -72,7 +77,11 @@ async def on_rank(context, username):
 
 
 @bot.command(name='championMastery', help='display your top 5 champion mastery')
-async def on_championMastery(context, username):
+async def on_championMastery(context, *arguments):
+	username = ''
+	for x in arguments:
+		username += x
+
 	summoner = watcher.summoner.by_name(region, username)
 	mastery = watcher.champion_mastery.by_summoner(region, summoner['id'])
 	sortedMasteryDesc = sorted(mastery, key = lambda i: i['championPoints'], reverse=True)
@@ -91,6 +100,8 @@ async def on_championMastery(context, username):
 		champion.pop('chestGranted')
 		champion.pop('tokensEarned')
 		champion.pop('summonerId')
+		time = champion['lastPlayTime']
+		champion['lastPlayTime'] = datetime.datetime.fromtimestamp(float(time)/1000).strftime('%Y-%m-%d %H:%M')
 
 	response = json.dumps(top, indent=4)
 	
