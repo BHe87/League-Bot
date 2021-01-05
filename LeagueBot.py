@@ -8,16 +8,16 @@ from discord.ext import commands
 from riotwatcher import LolWatcher, ApiError
 
 # if running local
-from dotenv import load_dotenv
-load_dotenv()
-discordToken = os.getenv('discord')
-riotAPI = os.getenv('riot')
+# from dotenv import load_dotenv
+# load_dotenv()
+# discordToken = os.getenv('discord')
+# riotAPI = os.getenv('riot')
 
 
 # if running Heroku
-# s3 = S3Connection(os.environ['discord'], os.environ['riot'])
-# discordToken = os.environ['discord']
-# riotAPI = os.environ['riot']
+s3 = S3Connection(os.environ['discord'], os.environ['riot'])
+discordToken = os.environ['discord']
+riotAPI = os.environ['riot']
 
 
 watcher = LolWatcher(riotAPI)
