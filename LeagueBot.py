@@ -9,16 +9,16 @@ from discord.ext import commands
 from riotwatcher import LolWatcher, ApiError
 
 # if running local
-# from dotenv import load_dotenv
-# load_dotenv()
-# discordToken = os.getenv('discord')
-# riotAPI = os.getenv('riot')
+from dotenv import load_dotenv
+load_dotenv()
+discordToken = os.getenv('discord')
+riotAPI = os.getenv('riot')
 
 
 # if running Heroku
-s3 = S3Connection(os.environ['discord'], os.environ['riot'])
-discordToken = os.environ['discord']
-riotAPI = os.environ['riot']
+# s3 = S3Connection(os.environ['discord'], os.environ['riot'])
+# discordToken = os.environ['discord']
+# riotAPI = os.environ['riot']
 
 try:
 	connection = sqlite3.connect("LeagueBot.db", uri=True)
@@ -71,9 +71,11 @@ async def on_clashAddFull(context, *arguments):
 	sat = arguments[-2]
 	sun = arguments[-1]
 	username = ''
-	for x in arguments[-4]:
+	for x in arguments[:-4]:
 		username += x + ' '
 	username = username[:-1]
+
+	print(username, primary, secondary, sat, sun,)
 
 	query = """INSERT OR REPLACE INTO playerstats VALUES ("{username}", "{primary}", "{secondary}", "{sat}", "{sun}", -1);"""\
 			.format(username=username, primary=primary, secondary=secondary, sat=sat, sun=sat)
