@@ -40,7 +40,7 @@ except sqlite3.OperationalError as error:
 	PrimaryRole varchar(255),
 	SecondaryRole varchar(255),
 	Saturday varchar(255),
-	Sundary varchar(255),
+	Sunday varchar(255),
 	Team int
 	);"""
 
@@ -61,6 +61,26 @@ bot = commands.Bot(command_prefix='!')
 @bot.event
 async def on_ready():
 	print(f'{bot.user.name} has connected to Discord!')
+
+
+@bot.command(name='Caddfull', help='add a player to the clash pool with full info in this format:\
+									Summoner Name, Primary Role, Secondary Role, Free on Saturday, Free on Sunday')
+async def on_clashAddFull(context, *arguments):
+	primary = arguments[-4]
+	secondary = arguments[-3]
+	sat = arguments[-2]
+	sun = arguments[-1]
+	username = ''
+	for x in arguments[-4]:
+		username += x + ' '
+	username = username[:-1]
+
+	query = """INSERT OR REPLACE INTO playerstats VALUES ("{username}", "{primary}", "{secondary}", "{sat}", "{sun}", -1);"""\
+			.format(username=username, primary=primary, secondary=secondary, sat=sat, sun=sat)
+
+	response = 'Added {username} to the Clash pool'.format(username=username)
+
+	await context.send(response)
 
 
 @bot.command(name='Cadd', help='add a player to the clash pool')
