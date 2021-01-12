@@ -3,6 +3,7 @@ import os
 import discord
 import json
 import datetime
+import sqlite3
 from boto.s3.connection import S3Connection
 from discord.ext import commands
 from riotwatcher import LolWatcher, ApiError
@@ -19,6 +20,33 @@ s3 = S3Connection(os.environ['discord'], os.environ['riot'])
 discordToken = os.environ['discord']
 riotAPI = os.environ['riot']
 
+try:
+	connection = sqlite3.connect("LeagueBot.db", uri=True)
+	cursor = connection.cursor()
+except sqlite3.OperationalError as error:
+	print('exception occured: database does not exist')
+	print(error)
+	query = """CREATE DATABASE LeagueBot;"""
+
+try:
+	queryTable = """SELECT * from playerstats"""
+	cursor.execute(queryTable)
+
+except sqlite3.OperationalError as error:
+	print(error)
+	print('creating table: playerstats')
+	sqlCommand = """CREATE TABLE playerstats (
+	User varchar(255) PRIMARY KEY,
+	PrimaryRole varchar(255),
+	SecondaryRole varchar(255),
+	Saturday varchar(255),
+	Sundary varchar(255),
+	Team int
+	);"""
+
+	cursor.execute(sqlCommand)
+	connection.commit()
+	# connection.close()
 
 watcher = LolWatcher(riotAPI)
 region = 'na1'
@@ -33,6 +61,48 @@ bot = commands.Bot(command_prefix='!')
 @bot.event
 async def on_ready():
 	print(f'{bot.user.name} has connected to Discord!')
+
+
+@bot.command(name='clash-add', help='add a player to the clash pool')
+async def on_clashAdd(context, *arguments):
+	username = ''
+	for x in arguments:
+		username += x + ' '
+	username = username[:-1]
+
+	query = """INSERT OR REPLACE INTO playerstats VALUES ("{username}", "", "", "no", "no", -1);""".format(username=username)
+	cursor.execute(query)
+	connection.commit()
+
+	response = 'Added {username} to the Clash pool'.format(username=username)
+
+	await context.send(response)
+
+
+@bot.command(name='clash-primary', help='set your primary role')
+async def on_clashPrimary(context, *arguments):
+	role = arguments[-1]
+	username = ''
+	for x in arguments[:-1]:
+		username += x + ' '
+	username = username[:-1]
+
+	query = """UPDATE playerstats SET PrimaryRole = "{role}" where User = "{username}";""".format(username=username, role=role)
+	cursor.execute(query)
+	connection.commit()
+
+	response = "Set {username}'s primary role to '{role}'".format(username=username, role=role)
+
+	await context.send(response)
+
+
+@bot.command(name='clash-players', help='displays all players')
+async def on_clashPlayers(context):
+	query = """SELECT * FROM playerstats;"""
+	cursor.execute(query)
+	data = cursor.fetchall()
+
+	await context.send(data)
 
 
 @bot.command(name='test', help='see if the bot is running')
@@ -56,9 +126,8 @@ async def on_summonerInfo(context, *arguments):
 	
 
 @bot.command(name='rank', help='display your rank info')
-async def on_rank(context, *arguments):# * operator allows for a variable # of arguments
+async def on_rank(context, *arguments):
 	mode = arguments[-1]
-
 	username = ''
 	for x in arguments[:-1]:
 		username += x + ' '
@@ -80,7 +149,9 @@ async def on_rank(context, *arguments):# * operator allows for a variable # of a
 			rawData = rawData[0]
 		except IndexError:
 			await context.send(username + ' is not ranked in this queue')
-
+	else:
+		await context.send('something went wrong')
+		
 	rawData.pop('queueType')
 	rawData.pop('leagueId')
 	rawData.pop('summonerId')
@@ -133,7 +204,6 @@ async def on_championMastery(context, *arguments):
 		champion.pop('summonerId')
 		time = champion['lastPlayTime']
 		champion['lastPlayTime'] = datetime.datetime.fromtimestamp(float(time)/1000).strftime('%H:%M %m-%d-%Y')
-		# response += '\n' + json.dumps(champion, indent=4)
 		keys = ''
 		for key in champion.keys():
 			keys += '\n' + key
