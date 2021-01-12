@@ -29,7 +29,7 @@ except sqlite3.OperationalError as error:
 	query = """CREATE DATABASE LeagueBot;"""
 
 try:
-	queryTable = """SELECT * from playerstats"""
+	queryTable = """SELECT * from playerstats;"""
 	cursor.execute(queryTable)
 
 except sqlite3.OperationalError as error:
@@ -63,7 +63,7 @@ async def on_ready():
 	print(f'{bot.user.name} has connected to Discord!')
 
 
-@bot.command(name='clash-add', help='add a player to the clash pool')
+@bot.command(name='Cadd', help='add a player to the clash pool')
 async def on_clashAdd(context, *arguments):
 	username = ''
 	for x in arguments:
@@ -79,7 +79,7 @@ async def on_clashAdd(context, *arguments):
 	await context.send(response)
 
 
-@bot.command(name='clash-primary', help='set your primary role')
+@bot.command(name='Cprimary', help='set your primary role')
 async def on_clashPrimary(context, *arguments):
 	role = arguments[-1]
 	username = ''
@@ -96,20 +96,64 @@ async def on_clashPrimary(context, *arguments):
 	await context.send(response)
 
 
-@bot.command(name='clash-players', help='displays all players')
+@bot.command(name='Csecondary', help='set your secondary role')
+async def on_clashSecondary(context, *arguments):
+	role = arguments[-1]
+	username = ''
+	for x in arguments[:-1]:
+		username += x + ' '
+	username = username[:-1]
+
+	query = """UPDATE playerstats SET SecondaryRole = "{role}" where User = "{username}";""".format(username=username, role=role)
+	cursor.execute(query)
+	connection.commit()
+
+	response = "Set {username}'s secondary role to '{role}'".format(username=username, role=role)
+
+	await context.send(response)
+
+
+@bot.command(name='CSat', help='set your availability to clash on Saturday')
+async def on_clashSaturday(context, *arguments):
+	free = arguments[-1]
+	username = ''
+	for x in arguments[:-1]:
+		username += x + ' '
+	username = username[:-1]
+
+	query = """UPDATE playerstats SET Saturday = "{free}" where User = "{username}";""".format(username=username, free=free)
+	cursor.execute(query)
+	connection.commit()
+
+	response = "Set {username}'s availability on Saturday to '{free}'".format(username=username, free=free)
+
+	await context.send(response)
+
+
+@bot.command(name='CSun', help='set your availability to clash on Sunday')
+async def on_clashSaturday(context, *arguments):
+	free = arguments[-1]
+	username = ''
+	for x in arguments[:-1]:
+		username += x + ' '
+	username = username[:-1]
+
+	query = """UPDATE playerstats SET Sunday = "{free}" where User = "{username}";""".format(username=username, free=free)
+	cursor.execute(query)
+	connection.commit()
+
+	response = "Set {username}'s availability on Sunday to '{free}'".format(username=username, free=free)
+
+	await context.send(response)
+
+
+@bot.command(name='Cplayers', help='displays all players in the clash pool')
 async def on_clashPlayers(context):
 	query = """SELECT * FROM playerstats;"""
 	cursor.execute(query)
 	data = cursor.fetchall()
 
 	await context.send(data)
-
-
-@bot.command(name='test', help='see if the bot is running')
-async def on_test(context):
-	response = 'hello world'
-
-	await context.send(response)
 
 
 @bot.command(name='summonerInfo', help='display useless summoner info')
@@ -218,6 +262,13 @@ async def on_championMastery(context, *arguments):
 	embed.set_author(name=username, icon_url='')
 
 	await context.send(embed=embed)
+
+
+@bot.command(name='test', help='see if the bot is running')
+async def on_test(context):
+	response = 'hello world'
+
+	await context.send(response)
 
 
 bot.run(discordToken)
