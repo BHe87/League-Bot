@@ -20,7 +20,7 @@ from riotwatcher import LolWatcher, ApiError
 s3 = S3Connection(os.environ['discord'], os.environ['riot'])
 discordToken = os.environ['discord']
 riotAPI = os.environ['riot']
-databaseURL = os.environ['db']
+databaseURL = os.environ['DATABASE_URL']
 
 
 connection = psycopg2.connect(databaseURL, sslmode='require')
