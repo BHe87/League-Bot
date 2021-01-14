@@ -66,13 +66,11 @@ async def on_clashAddFull(context, *arguments):
 		username += x + ' '
 	username = username[:-1]
 
-	print(username, primary, secondary, sat, sun,)
-
 	query = """INSERT INTO players (SummonerName, PrimaryRole, SecondaryRole, Saturday, Sunday, Team)
 			VALUES ('{username}', '{primary}', '{secondary}', '{sat}', '{sun}', -1)
 			ON CONFLICT (SummonerName) DO UPDATE SET PrimaryRole='{primary}', SecondaryRole='{secondary}', Saturday='{sat}', Sunday='{sun}'
 			WHERE players.SummonerName='{username}' RETURNING *;"""\
-			.format(username=username, primary=primary, secondary=secondary, sat=sat, sun=sat)
+			.format(username=username, primary=primary, secondary=secondary, sat=sat, sun=sun)
 	cursor.execute(query)
 	row = cursor.fetchone()
 	connection.commit()
