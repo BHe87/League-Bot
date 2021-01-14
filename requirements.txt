@@ -6,3 +6,4 @@ async-timeout==3.0.1
 boto
 riotwatcher
 datetime
+psycopg2-binary

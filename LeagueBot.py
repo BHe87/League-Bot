@@ -4,6 +4,7 @@ import discord
 import json
 import datetime
 import sqlite3
+import psycopg2
 from boto.s3.connection import S3Connection
 from discord.ext import commands
 from riotwatcher import LolWatcher, ApiError
@@ -13,40 +14,30 @@ from riotwatcher import LolWatcher, ApiError
 # load_dotenv()
 # discordToken = os.getenv('discord')
 # riotAPI = os.getenv('riot')
-
+# databaseURL = os.getenv('db')
 
 # if running Heroku
 s3 = S3Connection(os.environ['discord'], os.environ['riot'])
 discordToken = os.environ['discord']
 riotAPI = os.environ['riot']
+databaseURL = os.environ['db']
 
-try:
-	connection = sqlite3.connect("LeagueBot.db", uri=True)
-	cursor = connection.cursor()
-except sqlite3.OperationalError as error:
-	print('exception occured: database does not exist')
-	print(error)
-	query = """CREATE DATABASE LeagueBot;"""
 
-try:
-	queryTable = """SELECT * from playerstats;"""
-	cursor.execute(queryTable)
+connection = psycopg2.connect(databaseURL, sslmode='require')
+print('connected to database')
+cursor = connection.cursor()
 
-except sqlite3.OperationalError as error:
-	print(error)
-	print('creating table: playerstats')
-	sqlCommand = """CREATE TABLE playerstats (
-	User varchar(255) PRIMARY KEY,
-	PrimaryRole varchar(255),
-	SecondaryRole varchar(255),
-	Saturday varchar(255),
-	Sunday varchar(255),
-	Team int
-	);"""
+table = """CREATE TABLE IF NOT EXISTS players (
+		SummonerName varchar(255) PRIMARY KEY,
+	 	PrimaryRole varchar(255),
+	 	SecondaryRole varchar(255),
+	 	Saturday varchar(255),
+	 	Sunday varchar(255),
+	 	Team int
+ 	);"""
 
-	cursor.execute(sqlCommand)
-	connection.commit()
-	# connection.close()
+cursor.execute(table)
+connection.commit()
 
 watcher = LolWatcher(riotAPI)
 region = 'na1'
@@ -77,12 +68,21 @@ async def on_clashAddFull(context, *arguments):
 
 	print(username, primary, secondary, sat, sun,)
 
-	query = """INSERT OR REPLACE INTO playerstats VALUES ("{username}", "{primary}", "{secondary}", "{sat}", "{sun}", -1);"""\
+	query = """INSERT INTO players (SummonerName, PrimaryRole, SecondaryRole, Saturday, Sunday, Team)
+			VALUES ('{username}', '{primary}', '{secondary}', '{sat}', '{sun}', -1)
+			ON CONFLICT (SummonerName) DO UPDATE SET PrimaryRole='{primary}', SecondaryRole='{secondary}', Saturday='{sat}', Sunday='{sun}'
+			WHERE players.SummonerName='{username}';"""\
 			.format(username=username, primary=primary, secondary=secondary, sat=sat, sun=sat)
+	cursor.execute(query)
+	row = cursor.fetchone()
+	connection.commit()
 
-	response = 'Added {username} to the Clash pool'.format(username=username)
+	title  = 'Added {username} to the Clash pool'.format(username=username)
+	description = '%s, Primary: %s, Secondary: %s, Saturday: %s, Sunday: %s' % (row[0], row[1], row[2], row[3], row[4])
 
-	await context.send(response)
+	embed = discord.Embed(title=title, description=description)
+
+	await context.send(embed=embed)
 
 
 @bot.command(name='Cadd', help='add a player to the clash pool')
@@ -92,13 +92,20 @@ async def on_clashAdd(context, *arguments):
 		username += x + ' '
 	username = username[:-1]
 
-	query = """INSERT OR REPLACE INTO playerstats VALUES ("{username}", "", "", "no", "no", -1);""".format(username=username)
+	query = """INSERT INTO players(SummonerName, PrimaryRole, SecondaryRole, Saturday, Sunday, Team)
+			VALUES('{username}', 'NA', 'NA', 'no', 'no', -1)
+			ON CONFLICT DO NOTHING RETURNING *;"""\
+			.format(username=username)
 	cursor.execute(query)
+	row = cursor.fetchone()
 	connection.commit()
 
-	response = 'Added {username} to the Clash pool'.format(username=username)
+	title  = "Added '{username}' to the Clash pool".format(username=username)
+	description = '%s, Primary: %s, Secondary: %s, Saturday: %s, Sunday: %s' % (row[0], row[1], row[2], row[3], row[4])
 
-	await context.send(response)
+	embed = discord.Embed(title=title, description=description)
+
+	await context.send(embed=embed)
 
 
 @bot.command(name='Cprimary', help='set your primary role')
@@ -109,13 +116,19 @@ async def on_clashPrimary(context, *arguments):
 		username += x + ' '
 	username = username[:-1]
 
-	query = """UPDATE playerstats SET PrimaryRole = "{role}" where User = "{username}";""".format(username=username, role=role)
+	query = """UPDATE players SET PrimaryRole = '{role}'
+			WHERE SummonerName = '{username}' RETURNING *;"""\
+			.format(username=username, role=role)
 	cursor.execute(query)
+	row = cursor.fetchone()
 	connection.commit()
 
-	response = "Set {username}'s primary role to '{role}'".format(username=username, role=role)
+	title  = "Set {username}'s primary role to {role}".format(username=username, role=role)
+	description = '%s, Primary: %s, Secondary: %s, Saturday: %s, Sunday: %s' % (row[0], row[1], row[2], row[3], row[4])
 
-	await context.send(response)
+	embed = discord.Embed(title=title, description=description)
+
+	await context.send(embed=embed)
 
 
 @bot.command(name='Csecondary', help='set your secondary role')
@@ -126,13 +139,19 @@ async def on_clashSecondary(context, *arguments):
 		username += x + ' '
 	username = username[:-1]
 
-	query = """UPDATE playerstats SET SecondaryRole = "{role}" where User = "{username}";""".format(username=username, role=role)
+	query = """UPDATE players SET SecondaryRole = '{role}'
+			WHERE SummonerName = '{username}' RETURNING *;"""\
+			.format(username=username, role=role)
 	cursor.execute(query)
+	row = cursor.fetchone()
 	connection.commit()
 
-	response = "Set {username}'s secondary role to '{role}'".format(username=username, role=role)
+	title  = "Set {username}'s secondary role to {role}".format(username=username, role=role)
+	description = '%s, Primary: %s, Secondary: %s, Saturday: %s, Sunday: %s' % (row[0], row[1], row[2], row[3], row[4])
 
-	await context.send(response)
+	embed = discord.Embed(title=title, description=description)
+
+	await context.send(embed=embed)
 
 
 @bot.command(name='CSat', help='set your availability to clash on Saturday')
@@ -143,13 +162,19 @@ async def on_clashSaturday(context, *arguments):
 		username += x + ' '
 	username = username[:-1]
 
-	query = """UPDATE playerstats SET Saturday = "{free}" where User = "{username}";""".format(username=username, free=free)
+	query = """UPDATE players SET Saturday = '{free}' 
+			WHERE SummonerName = '{username}' RETURNING *;"""\
+			.format(username=username, free=free)
 	cursor.execute(query)
+	row = cursor.fetchone()
 	connection.commit()
 
-	response = "Set {username}'s availability on Saturday to '{free}'".format(username=username, free=free)
+	title  = "Set {username}'s Saturday availability to {free}".format(username=username, free=free)
+	description = '%s, Primary: %s, Secondary: %s, Saturday: %s, Sunday: %s' % (row[0], row[1], row[2], row[3], row[4])
 
-	await context.send(response)
+	embed = discord.Embed(title=title, description=description)
+
+	await context.send(embed=embed)
 
 
 @bot.command(name='CSun', help='set your availability to clash on Sunday')
@@ -160,22 +185,52 @@ async def on_clashSaturday(context, *arguments):
 		username += x + ' '
 	username = username[:-1]
 
-	query = """UPDATE playerstats SET Sunday = "{free}" where User = "{username}";""".format(username=username, free=free)
+	query = """UPDATE players SET Sunday = '{free}'
+			WHERE SummonerName = '{username}' RETURNING *;"""\
+			.format(username=username, free=free)
 	cursor.execute(query)
+	row = cursor.fetchone()
 	connection.commit()
 
-	response = "Set {username}'s availability on Sunday to '{free}'".format(username=username, free=free)
+	title  = "Set {username}'s Sunday availability to {free}".format(username=username, free=free)
+	description = '%s, Primary: %s, Secondary: %s, Saturday: %s, Sunday: %s' % (row[0], row[1], row[2], row[3], row[4])
 
-	await context.send(response)
+	embed = discord.Embed(title=title, description=description)
+
+	await context.send(embed=embed)
 
 
 @bot.command(name='Cplayers', help='displays all players in the clash pool')
 async def on_clashPlayers(context):
-	query = """SELECT * FROM playerstats;"""
+	query = """SELECT * FROM players;"""
 	cursor.execute(query)
-	data = cursor.fetchall()
+	players = cursor.fetchall()
 
-	await context.send(data)
+	embed = discord.Embed(title='All Players', description='')
+
+	for row in players:
+		info = "Primary: %s, Secondary: %s, Saturday: %s, Sunday: %s" % (row[1], row[2], row[3], row[4])
+		embed.add_field(name=row[0], value=info, inline=False)
+
+	await context.send(embed=embed)
+
+
+@bot.command(name='Cremove', help='removes a player from the clash pool')
+async def on_clashRemove(context, *arguments):
+	username = ''
+	for x in arguments:
+		username += x + ' '
+	username = username[:-1]
+
+	query = """DELETE FROM players WHERE SummonerName = '{username}';"""\
+			.format(username=username)
+	cursor.execute(query)
+	connection.commit()
+
+	title = "Removed '{username}' from the clash pool".format(username=username)
+	embed = discord.Embed(title=title, description='')
+
+	await context.send(embed=embed)
 
 
 @bot.command(name='summonerInfo', help='display useless summoner info')
